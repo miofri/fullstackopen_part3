@@ -1,0 +1,19 @@
+.prompt {
+	color: aquamarine;
+	background-color: grey;
+	font-size: 20px;
+	border-style: solid;
+	width: 300px;
+	text-align: center;
+	margin-bottom: 15px;
+}
+
+.err {
+	color: red;
+	background-color: grey;
+	font-size: 20px;
+	border-style: solid;
+	width: 300px;
+	text-align: center;
+	margin-bottom: 15px;
+}
