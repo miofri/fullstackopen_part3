@@ -1,9 +1,9 @@
-const { request, response } = require('express')
+// const { request, response } = require('express')
 const express = require('express')
 const app = express()
 const morgan = require('morgan')
 const cors = require('cors')
-const dotenv = require('dotenv').config()
+require('dotenv').config()
 const People = require('./models/people')
 app.use(express.json())
 app.use(cors())
@@ -34,7 +34,7 @@ app.get('/api/persons', (request, response) => {
 		})
 })
 
-app.get('/api/persons/:id', (request, response) => {
+app.get('/api/persons/:id', (request, response, next) => {
 	People.findById(request.params.id)
 		.then(num => {
 			if (num) { response.json(num) }
@@ -44,7 +44,7 @@ app.get('/api/persons/:id', (request, response) => {
 })
 
 app.get('/info', (request, response) => {
-	const x = People.find({})
+	People.find({})
 		.then(response => response.length)
 		.then((res) => {
 			let curTime = new Date()
@@ -55,7 +55,7 @@ app.get('/info', (request, response) => {
 
 app.delete('/api/persons/:id', (request, response, next) => {
 	People.findByIdAndRemove(request.params.id)
-		.then(result => {
+		.then(() => {
 			response.status(204).end()
 		})
 		.catch((error) => next(error))
@@ -129,7 +129,8 @@ const errorHandler = (error, request, response, next) => {
 app.use(errorHandler)
 
 const PORT = process.env.PORT || 3001
+
 app.listen(PORT, () => {
-	console.log(`server running on port ${PORT}`);
+	console.log(`server running on port ${PORT}`)
 })
 
