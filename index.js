@@ -1,10 +1,10 @@
 const { request, response } = require('express')
 const express = require('express')
 const app = express()
-const morgan = require('morgan');
-const cors = require('cors');
+const morgan = require('morgan')
+const cors = require('cors')
 const dotenv = require('dotenv').config()
-const People = require('./models/people');
+const People = require('./models/people')
 app.use(express.json())
 app.use(cors())
 app.use(express.static('build'))
