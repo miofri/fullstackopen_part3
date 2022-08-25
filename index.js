@@ -5,7 +5,6 @@ const morgan = require('morgan');
 const cors = require('cors');
 const dotenv = require('dotenv').config()
 const People = require('./models/people');
-const note = require('../codealong_heroku/models/note');
 app.use(express.json())
 app.use(cors())
 app.use(express.static('build'))
@@ -62,13 +61,8 @@ app.delete('/api/persons/:id', (request, response, next) => {
 		.catch((error) => next(error))
 })
 
-app.post('/api/persons', (request, response) => {
+app.post('/api/persons', (request, response, next) => {
 	const body = request.body
-	if (!body.name || !body.number) {
-		return (response.status(400).json({
-			error: 'name or/and number are missing'
-		}))
-	}
 
 	const num = new People({
 		name: body.name,
@@ -79,7 +73,7 @@ app.post('/api/persons', (request, response) => {
 		.then(savedNum => {
 			response.json(savedNum)
 		})
-		.catch(err => { response.status(500).end(); console.log(err) })
+		.catch(error => next(error))
 
 	body2 = body
 })
@@ -87,21 +81,32 @@ app.post('/api/persons', (request, response) => {
 app.put('/api/persons/:id', (request, response, next) => {
 	const body = request.body
 
-	const person = {
-		name: body.name,
-		number: body.number,
-	}
+	console.log(typeof body.number)
 
-	People.findByIdAndUpdate(request.params.id, person, { new: true })
-		.then(person => {
-			if (person) {
-				response.json(person)
-			}
-			else {
-				response.status(404).end()
-			}
-		})
-		.catch(error => next(error))
+	let re = /[0-9]{2,3}-[0-9]{7,}/
+
+	if (re.test(body.number)) {
+
+		const person = {
+			name: body.name,
+			number: body.number,
+		}
+
+		People.findByIdAndUpdate(request.params.id, person, { new: true })
+			.then(person => {
+				if (person) {
+					response.json(person)
+				}
+				else {
+					response.status(404).end()
+				}
+			})
+			.catch(error => next(error))
+	}
+	else {
+		response.status(400).send({ error: 'malformatted number' })
+		next()
+	}
 })
 
 function getBody(req, res, next) {
@@ -110,17 +115,20 @@ function getBody(req, res, next) {
 }
 
 const errorHandler = (error, request, response, next) => {
-	console.error(error.message)
+	// console.error(error.name)
 
 	if (error.name === 'CastError') {
 		return response.status(400).send({ error: 'malformatted id' })
+	}
+	else if (error.name === 'ValidationError') {
+		return response.status(400).send(error.message)
 	}
 	next(error)
 }
 
 app.use(errorHandler)
 
-const PORT = process.env.PORT || 3002
+const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
 	console.log(`server running on port ${PORT}`);
 })

@@ -64,10 +64,18 @@ const App = () => {
 						setTimeout(() => { setPromptMsg(null) }, 5000)
 					})
 					.catch(err => {
-						setErrorMsg(`${changedPerson.name} is already deleted`)
-						setTimeout(() => {
-							setErrorMsg(null)
-						}, 5000)
+						if (err.response.data.error === "malformatted number") {
+							setErrorMsg("The number you entered is invalid")
+							setTimeout(() => {
+								setErrorMsg(null)
+							}, 5000)
+						}
+						else {
+							setErrorMsg(`${changedPerson.name} is a deleted`)
+							setTimeout(() => {
+								setErrorMsg(null)
+							}, 5000)
+						}
 					}
 					))
 			}
@@ -88,6 +96,12 @@ const App = () => {
 				setNumber('')
 				setPromptMsg(`added ${response.name}`)
 				setTimeout(() => { setPromptMsg(null) }, 5000)
+			})
+			.catch(error => {
+				setErrorMsg(error.response.data)
+				setTimeout(() => {
+					setErrorMsg(null)
+				}, 5000)
 			})
 
 	}

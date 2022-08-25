@@ -8,8 +8,22 @@ console.log('connecting to:', url);
 // }
 
 const personSchema = new mongoose.Schema({
-	name: String,
-	number: String,
+	name: {
+		type: String,
+		minLength: 3,
+		required: true
+	},
+	number: {
+		type: String,
+		validate: {
+			validator: (v) => {
+				return /[0-9]{2,3}-[0-9]{7,}/.test(v)
+			},
+			message: "The number you entered is not valid!",
+		},
+		message: `This is not a valid phone number`,
+		required: true
+	},
 	id: Number,
 })
 
@@ -40,16 +54,16 @@ mongoose
 					})
 			// return mongoose.connection.close()
 		}
-		else {
-			People.find({}).then(
-				(result) => {
-					console.log('phonebook:')
-					result.forEach(item => {
-						console.log(item.name, item.number)
-					})
-					// return mongoose.connection.close()
-				})
-		}
+		// else {
+		// 	People.find({}).then(
+		// 		(result) => {
+		// 			console.log('phonebook:')
+		// 			result.forEach(item => {
+		// 				console.log(item.name, item.number)
+		// 			})
+		// 			// return mongoose.connection.close()
+		// 		})
+		// }
 	})
 	.catch((err) =>
 		console.log(err)
