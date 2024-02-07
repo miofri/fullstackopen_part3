@@ -1,136 +1,126 @@
-// const { request, response } = require('express')
-const express = require('express')
-const app = express()
-const morgan = require('morgan')
-const cors = require('cors')
-require('dotenv').config()
-const People = require('./models/people')
-app.use(express.json())
-app.use(cors())
-app.use(express.static('build'))
+const express = require('express');
+const app = express();
+const cors = require('cors');
+const morgan = require('morgan');
+const mongoose = require('mongoose');
+const PhonebookEntry = require('./models/phonebook-schema');
+const url = process.env.MONGODB_URI;
 
-// Morgan-post section
-
-// Custom morgan token('token name', function callback). I used res since using req will mess with the app.post's body and set it to undefined.)
-morgan.token('resbody', function (res) {
-	if (res.body)
-		return JSON.stringify(res.body)
-})
-// Need a var outside of the post scope to use in getBody func.
-let body2
-// Calling getBody will assign app.post's body to the response, so that morgan.token can use it for :resbody.
-app.use(getBody)
-app.use(morgan(':method :url :status :res[content-length] - :response-time ms :resbody'))
-
-
-app.get('/', (request, response) => {
-	response.send('<h1>Hello world</h1>')
-})
-
-app.get('/api/persons', (request, response) => {
-	People.find({})
-		.then(person => {
-			response.json(person)
-		})
-})
-
-app.get('/api/persons/:id', (request, response, next) => {
-	People.findById(request.params.id)
-		.then(num => {
-			if (num) { response.json(num) }
-			else { response.status(404).end() }
-		})
-		.catch((error) => next(error))
-})
-
-app.get('/info', (request, response) => {
-	People.find({})
-		.then(response => response.length)
-		.then((res) => {
-			let curTime = new Date()
-			response.send(`<p> phonebook has info for ${res} people </p>
-	<p>${curTime}</p>`)
-		})
-})
-
-app.delete('/api/persons/:id', (request, response, next) => {
-	People.findByIdAndRemove(request.params.id)
-		.then(() => {
-			response.status(204).end()
-		})
-		.catch((error) => next(error))
-})
-
-app.post('/api/persons', (request, response, next) => {
-	const body = request.body
-
-	const num = new People({
-		name: body.name,
-		number: body.number,
+mongoose
+	.connect(url)
+	.then(() => {
+		console.log('connected to MongoDB');
 	})
+	.catch((error) => {
+		console.log('error connecting to MongoDB:', error.message);
+	});
+mongoose.set('strictQuery', false);
 
-	num.save()
-		.then(savedNum => {
-			response.json(savedNum)
+morgan.token('body', (req) => {
+	return JSON.stringify(req.body);
+});
+
+app.use(express.static('build'));
+app.use(express.json());
+app.use(cors());
+app.use(
+	morgan(':method :url :status :res[content-length] - :response-time ms :body')
+);
+
+app.get('/', (req, res) => {
+	return res.send('<h1>Welcome to phonebook!</h1>');
+});
+
+app.get('/api/persons', (req, res, next) => {
+	PhonebookEntry.find({})
+		.then((result) => {
+			res.json(result);
 		})
-		.catch(error => next(error))
+		.catch((error) => {
+			next(error);
+		});
+});
 
-	body2 = body
-})
+app.get('/api/persons/:id', (req, res, next) => {
+	const id = req.params.id;
+	PhonebookEntry.findById(id)
+		.then((result) => {
+			if (result) {
+				return res.json(result);
+			}
+			return res.status(404).end();
+		})
+		.catch((error) => {
+			next(error);
+		});
+});
 
-app.put('/api/persons/:id', (request, response, next) => {
-	const body = request.body
-
-	console.log(typeof body.number)
-
-	let re = /[0-9]{2,3}-[0-9]{7,}/
-
-	if (re.test(body.number)) {
-
-		const person = {
-			name: body.name,
-			number: body.number,
+app.post('/api/persons', async (req, res, next) => {
+	const findDuplicate = async () => {
+		const duplicate = await PhonebookEntry.find({
+			name: req.body.name,
+		});
+		if (duplicate.length > 0) {
+			return true;
 		}
-
-		People.findByIdAndUpdate(request.params.id, person, { new: true })
-			.then(person => {
-				if (person) {
-					response.json(person)
-				}
-				else {
-					response.status(404).end()
-				}
-			})
-			.catch(error => next(error))
+		return false;
+	};
+	const isDuplicate = await findDuplicate();
+	if (isDuplicate) {
+		return res.json({
+			error: 'name must be unique',
+		});
 	}
-	else {
-		response.status(400).send({ error: 'malformatted number' })
-		next()
-	}
-})
+	const newPhonebookEntry = new PhonebookEntry({
+		name: req.body.name,
+		number: req.body.number,
+	});
+	newPhonebookEntry
+		.save()
+		.then((result) => {
+			console.log('new entry saved!');
+			res.json(result).status(201).end();
+		})
+		.catch((error) => {
+			next(error);
+		});
+});
 
-function getBody(req, res, next) {
-	res.body = body2
-	next()
-}
+app.put('/api/persons/:id', async (req) => {
+	const { name, number } = req.body;
+	PhonebookEntry.findByIdAndUpdate(
+		req.params.id,
+		{ name, number },
+		{ new: true, runValidators: true, context: 'query' }
+	);
+});
 
-const errorHandler = (error, request, response, next) => {
-	// console.error(error.name)
+app.delete('/api/persons/:id', async (req, res, next) => {
+	PhonebookEntry.findByIdAndDelete(req.params.id)
+		.then((result) => {
+			if (result) {
+				return res.status(204).end();
+			}
+			return res.status(404).end();
+		})
+		.catch((error) => {
+			next(error);
+		});
+});
 
+const errorHandler = (error, req, res, next) => {
+	console.error(error.stack);
 	if (error.name === 'CastError') {
-		return response.status(400).send({ error: 'malformatted id' })
+		return res.status(400).json({ error: 'malformatted id' });
+	} else if (error.name === 'ValidationError') {
+		return res
+			.status(403)
+			.send({ errorName: error.name, errorMessage: error.message });
 	}
-	else if (error.name === 'ValidationError') {
-		return response.status(400).send(error.message)
-	}
-	next(error)
-}
+	next(error);
+};
 
-app.use(errorHandler)
-
-const PORT = process.env.PORT || 3001
-
-app.listen(PORT, () => {
-	console.log(`server running on port ${PORT}`)
-})
-
+app.use(errorHandler);
+const PORT = process.env.PORT || 3001;
+app.listen(PORT);
+console.log(`Server running on port ${PORT}`);
